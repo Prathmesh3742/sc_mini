@@ -16,25 +16,30 @@ st.markdown("Interactive 4-Way Junction Simulator with Emergency Override and Li
 # SIDEBAR: 12 Interactive Inputs
 # ==========================================
 st.sidebar.header("🎛️ Intersection Controls")
+st.sidebar.markdown("Adjust the real-time traffic volume and wait times to see how the Fuzzy Engine reacts.")
 
+# State dictionary to hold all 4 lanes
 lanes_data = {"North": {}, "South": {}, "East": {}, "West": {}}
 
+# Programmatically generate sliders for all 4 lanes
 for lane in lanes_data.keys():
     st.sidebar.subheader(f"{lane} Lane")
-    d = st.sidebar.slider(f"{lane} Density", 0, 100, 50, key=f"{lane}_d")
-    w = st.sidebar.slider(f"{lane} Waiting Time (s)", 0, 120, 30, key=f"{lane}_w")
-    e = st.sidebar.checkbox(f"{lane} Emergency Vehicle", key=f"{lane}_e")
+    density_val = st.sidebar.slider(f"{lane} Density", 0, 100, 50, key=f"{lane}_d", help="Number of cars in the queue.")
+    wait_val = st.sidebar.slider(f"{lane} Waiting Time (s)", 0, 120, 30, key=f"{lane}_w", help="Seconds the first car has been waiting.")
+    emerg_val = st.sidebar.checkbox(f"{lane} Emergency Vehicle", key=f"{lane}_e", help="Forces maximum priority override.")
     
+    # Store user selections into the central dict
     lanes_data[lane] = {
-        'density': d,
-        'wait': w,
-        'emergency': 1 if e else 0
+        'density': density_val,
+        'wait': wait_val,
+        'emergency': 1 if emerg_val else 0
     }
     st.sidebar.markdown("---")
 
 # ==========================================
 # FUZZY INFERENCE LOGIC (Live Calculation)
 # ==========================================
+# Triggers instantly on any slider change
 winner, duration, results = evaluate_intersection(lanes_data)
 
 # ==========================================
@@ -55,11 +60,11 @@ with col1:
     plt.close(fig)
     
     # Animation Trigger
-    if st.button(f"Animate Green Light ({winner})"):
-        sim_lanes = dict(lanes_data) # Copy data to mutate visually
+    if st.button(f"Animate Green Light ({winner})", help="Watch the logic process vehicles in real-time"):
+        sim_lanes = dict(lanes_data) # Shallow copy data to mutate visually
         total_time = int(duration)
         
-        # We simulate cars leaving roughly 1 unit of density per second
+        # We simulate cars clearing the intersection at roughly 1 density unit per second
         density_drain_rate = sim_lanes[winner]['density'] / max(total_time, 1)
         
         for t in range(total_time, -1, -1):
@@ -79,7 +84,7 @@ with col1:
 with col2:
     st.subheader("Current Priority Scores")
     
-    # Bar Chart 
+    # Bar Chart Rendering
     priorities = {l: results[l]['priority'] for l in results}
     df_p = pd.DataFrame(priorities.values(), index=priorities.keys(), columns=['Priority Score'])
     st.bar_chart(df_p, color="#ff4b4b")

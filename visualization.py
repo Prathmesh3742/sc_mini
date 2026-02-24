@@ -2,7 +2,23 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 def draw_intersection(winner_lane, green_duration, lanes_data):
+    """
+    Renders a 2D map of a 4-way traffic intersection using Matplotlib shapes.
+    It visually highlights the winning lane's traffic light in green, and displays
+    the remaining countdown timer. It also populates the lane with vehicle "dots" 
+    scaled by density, and highlights emergency vehicles in a distinct color.
+    
+    Args:
+        winner_lane (str): The lane granted the green signal ('North', 'South', 'East', 'West').
+        green_duration (float): The amount of green light duration computed.
+        lanes_data (dict): The dictionary containing density and emergency states for rendering.
+        
+    Returns:
+        matplotlib.figure.Figure: The rendered traffic map figure.
+    """
     fig, ax = plt.subplots(figsize=(6, 6))
+    
+    # Setup canvas bounds (0 to 100 logical units)
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 100)
     ax.axis('off')
@@ -55,7 +71,10 @@ def draw_intersection(winner_lane, green_duration, lanes_data):
         ax.text(50, 50, f"{int(green_duration)}s", color='white', fontsize=18, 
                 ha='center', va='center', fontweight='bold', zorder=5)
 
-    # Draw vehicle density dots
+    # ---------------------------------------------
+    # Render Vehicle Density ("Dots")
+    # ---------------------------------------------
+    # Define coordinate starting boundaries for spawning queue dots
     dot_positions = {
         'North': [(45, 80 + i*4) for i in range(5)],
         'South': [(55, 20 - i*4) for i in range(5)],
@@ -63,14 +82,19 @@ def draw_intersection(winner_lane, green_duration, lanes_data):
         'West':  [(20 - i*4, 55) for i in range(5)],
     }
     
-    for lane, pts in dot_positions.items():
+    # Draw cars incrementally based on the density percentage
+    for lane, coordinates in dot_positions.items():
         density = lanes_data[lane]['density']
-        cars_to_draw = int((density / 100.0) * 5) # Scale 0-100 to 0-5 dots
-        for i in range(cars_to_draw):
-            px, py = pts[i]
-            # Emergency vehicles get blue/red flash indicator
-            is_emergency = lanes_data[lane]['emergency'] == 1 and i == 0
-            car_color = '#00CCFF' if is_emergency else '#FFDD00'
+        
+        # Scale the 0-100 density input into 0-5 physical dots for visual representation
+        cars_to_draw = int((density / 100.0) * 5) 
+        
+        for index in range(cars_to_draw):
+            px, py = coordinates[index]
+            
+            # Emergency vehicles are always at the front of the queue, visually pulsing blue/cyan
+            is_emergency = (lanes_data[lane]['emergency'] == 1 and index == 0)
+            car_color = '#00CCFF' if is_emergency else '#FFDD00' # Cyan vs Standard Yellow 
             ax.add_patch(patches.Circle((px, py), 1.5, color=car_color, zorder=3))
 
     fig.tight_layout()
