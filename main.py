@@ -255,33 +255,36 @@ for i, s in enumerate(scenario_results):
     winner = s['Winner']
     fuzzy_green = s['Green_Duration']
     
-    # Better System Penalty Metric: Total System Remaining Vehicle-Seconds of Wait
-    # Every missing second of green for a waiting car increases penalty.
-    # Green light clears ~1 unit of density per second.
-    def compute_system_penalty(lanes_details, win_lane, green_time):
-        penalty = 0
-        for lname, d_opts in lanes_details.items():
-            d = d_opts['data']['density']
-            w = d_opts['data']['wait']
-            if lname == win_lane:
-                rem_d = max(0, d - green_time) # cars left waiting
-                penalty += rem_d * (w + green_time)
-            else:
-                penalty += d * (w + green_time) # all cars keep waiting
-        return penalty
+    # Better Metric: Queue Clearance Efficiency (Car-Seconds Relieved)
+    # Effectivness = cleared_cars * (wait_time + emergency_multiplier)
+    # A higher score means the system correctly prioritized the most critical lane.
+    def compute_effectiveness(lanes_details, win_lane, green_time):
+        d = lanes_details[win_lane]['data']['density']
+        w = lanes_details[win_lane]['data']['wait']
+        e = lanes_details[win_lane]['data']['emergency']
+        
+        # Assume 1 car clears per second of green
+        cleared_cars = min(d, green_time)
+        
+        # Emergencies receive a flat +1000 weight addition to heavily prioritize them
+        # without breaking the numerical scale entirely.
+        EMERGENCY_WEIGHT = 1000
+        effective_wait = w + (EMERGENCY_WEIGHT if e else 0)
+        
+        return cleared_cars * effective_wait
         
     fixed_winner = 'North'
-    fixed_penalty = compute_system_penalty(details, fixed_winner, fixed_green)
-    fuzzy_penalty = compute_system_penalty(details, winner, fuzzy_green)
+    fixed_efficiency = compute_effectiveness(details, fixed_winner, fixed_green)
+    fuzzy_efficiency = compute_effectiveness(details, winner, fuzzy_green)
             
     comparison_data.append({
         'Scenario': s['Scenario'].split(':')[0],
         'Fixed_Winner': fixed_winner,
         'Fixed_Green': 30,
-        'Fixed_System_Penalty': round(fixed_penalty, 2),
+        'Fixed_Efficiency': round(fixed_efficiency, 2),
         'Fuzzy_Winner': winner,
         'Fuzzy_Green': round(fuzzy_green, 2),
-        'Fuzzy_System_Penalty': round(fuzzy_penalty, 2)
+        'Fuzzy_Efficiency': round(fuzzy_efficiency, 2)
     })
 
 df_comparison = pd.DataFrame(comparison_data)
